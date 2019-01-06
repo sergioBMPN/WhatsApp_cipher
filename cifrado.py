@@ -2,8 +2,14 @@ from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
-import sys
 
+import base64
+from Crypto import Random
+import hashlib
+
+BS = 16
+pad = lambda s: s + (BS - len(s) % BS) * chr(BS - len(s) % BS)
+unpad = lambda s: s[0:-s[-1]]
 
 class AESCipher:
 
@@ -117,18 +123,21 @@ class RSACipher:
         print(data.decode())
 
 
-# TODO: sacar la funcion descifrar de las clases para poder implementar cliente-servidor (entrega final)
+class WhatsAppCipher:
+    def __init__(self, key):
+        self.key = hashlib.sha256(key.encode('utf-8')).digest()
 
-if __name__ == '__main__':
-    try:
-        fichero= sys.argv[1]
-        passwd= sys.argv[2]
-        my_hash = Hash_Cipher(fichero)
-        hash_file = my_hash.get_hash()
+    def cifrar(self, raw):
+        raw = pad(raw)
+        iv = Random.new().read(AES.block_size)
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        return base64.b64encode(iv + cipher.encrypt(raw.encode('utf-8')))
 
-        obj = RSACipher(fichero, passwd, hash_file)
-        obj.cifrar_RSA()
-        obj.descifrar_RSA()
-    except:
-        print("error, debe introducir el fichero y la contraseña")
+    def descifrar(self, enc):
+        enc = base64.b64decode(enc)
+        iv = enc[:16]
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        return unpad(cipher.decrypt(enc[16:]))
+
+
 
